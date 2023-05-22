@@ -1,4 +1,4 @@
-# python search card price
+# python search card price)
 - python 版本為3.9.7 
 
 ## 功能說明
@@ -20,5 +20,5 @@ pip install -r requirements.txt
 
 ## 參考資料
 - [beautiful soup 實作](https://steam.oxxostudio.tw/category/python/spider/beautiful-soup.html)
-- [露天爬蟲參考]https://tlyu0419.github.io/2020/06/14/Crawler-Ruten/
-- [logging 官方文檔]https://docs.python.org/zh-tw/3/howto/logging.html#handler-basic
+- [露天爬蟲參考](https://tlyu0419.github.io/2020/06/14/Crawler-Ruten/)
+- [logging 官方文檔](https://docs.python.org/zh-tw/3/howto/logging.html#handler-basic)
