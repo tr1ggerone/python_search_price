@@ -4,13 +4,14 @@ Created on Mon May 15 10:27:46 2023
 
 @author: HuangAlan
 """
-__version__='0.1.0'
+__version__='0.1.1'
 from datetime import date
 import logging
+import os
 import re
 from time import time
 from bs4 import BeautifulSoup
-import colorama
+from colorama import init
 from colorama import Fore
 from colorama import Style
 import numpy as np
@@ -19,7 +20,8 @@ import requests
 
 # %% initial
 # ----- initial para -----
-colorama.init()
+os.system('cls') # need this to ensure the colorama is work in input
+init(wrap=True, autoreset=True) # need to add wrap to show color in cmd
 BANNED = np.genfromtxt('banned_keyword.txt', dtype='U20', encoding='utf-8')
 
 # ----- set logger -----
@@ -31,8 +33,7 @@ logging.basicConfig(level=logging.INFO, filename= f'search-{date.today()}.log',
 # %% scratch
 while True:
     item_name = input(Fore.CYAN + Style.BRIGHT +
-                      '<<< 請輸入卡片編號/名稱/型號: ' + 
-                      Style.RESET_ALL)
+                      '<<< 請輸入卡片編號/名稱/型號: ' + Style.RESET_ALL)
     if item_name == str():
         logging.info('結束搜尋')
         break
@@ -156,12 +157,10 @@ while True:
                         
                         print(Fore.YELLOW + Style.BRIGHT +
                               f'{i_local}售價中位數: {int(_table_med)}'+ 
-                              f', 售價第一位數: {int(_table_q1)}' +
-                              Style.RESET_ALL)
+                              f', 售價第一位數: {int(_table_q1)}')
                         
                     print(Fore.YELLOW + Style.BRIGHT +
-                          f'{i_local}售價前三低的價格與連結:' + 
-                          Style.RESET_ALL)
+                          f'{i_local}售價前三低的價格與連結:')
                     print(_table_top_n.loc[:,['name', 'price', 'sales', 'link']].to_markdown())
                     print('')
 
