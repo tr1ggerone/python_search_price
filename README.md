@@ -1,5 +1,7 @@
 ## python search card price
-- python 版本為3.9.7 
+- anaconda3版本: conda 4.9.1
+- anaconda3版本可利用`conda -V`查詢
+- anaconda3需安裝在`C:\User\your user name\`下面
 
 ## 功能說明
 1. 依照輸入卡號並回傳露天拍賣上前三便宜的卡價、銷售數量與連結
@@ -9,14 +11,23 @@
 
 ## 使用流程
 - 為了避免`Caused by SSLError("Can't connect to HTTPS URL because the SSL module is not available."`問題，需使用virtual env來執行程式
-- 建立virtual env並安裝相對應的python package，以下為Anaconda Prompt的範例
+- 將專案下載下來後，可點擊**run.bat**啟動查詢程式，以下為run.bat內code解說
+``` python
+call %USERPROFILE%\anaconda3\Scripts\activate.bat #啟動電腦內的anaconda3，%USERPROFILE%可自動抓取用戶資訊
+call conda info --envs | findstr "\<web_env\>" > nul #判斷env是否存在，存在則啟動，不存在則創建
+if not errorlevel 1 (
+    echo env is existed...
+    call conda activate web_env
+) else (
+    echo setup web_env...
+    call conda create -n web_env python=3.9.7
+    call conda activate web_env
+    call pip install -r requirements.txt
+)
+python python_scratch.py #執行python script
+pause
 ```
-conda create -n web_env python=3.9.7
-conda activate web_env
-pip install -r requirements.txt
-```
-- 創建完環境後，便可點擊**run.bat**啟動查詢程式(.bat中有使用%USERPROFILE%自動獲取具體用戶名稱)
-- 若要關閉程式可直接按下`Enter鍵`，便會自動關閉程式
+- 若要關閉程式可直接在查詢時按下`Enter鍵`，便會自動關閉程式
 - 要查詢當天的歷史收尋紀錄可以到**search.log**中查看
 
 ## 參考資料
