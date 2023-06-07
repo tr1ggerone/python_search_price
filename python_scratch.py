@@ -4,8 +4,8 @@ Created on Mon May 15 10:27:46 2023
 
 @author: HuangAlan
 """
-__version__='0.1.1'
-from datetime import date
+__version__='0.2.0'
+import json
 import logging
 import os
 import re
@@ -16,19 +16,53 @@ from colorama import Fore
 from colorama import Style
 import numpy as np
 import pandas as pd
+import pymysql
 import requests
 
 # %% initial
 # ----- initial para -----
 os.system('cls') # need this to ensure the colorama is work in input
 init(wrap=True, autoreset=True) # need to add wrap to show color in cmd
-BANNED = np.genfromtxt('banned_keyword.txt', dtype='U20', encoding='utf-8')
 
 # ----- set logger -----
 # level set as bebug, will recorded the http debug message in .log
-logging.basicConfig(level=logging.INFO, filename= f'search-{date.today()}.log', 
+logging.basicConfig(level=logging.INFO, filename= 'search.log', 
                     format='%(asctime)s, %(levelname)s: %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S')
+
+# ----- load config -----
+with open('config.json',encoding='utf-8') as file:
+    config = json.load(file)
+BANNED = config['banned']
+
+# ----- connect to mySQL db -----
+db_settings = dict(host='127.0.0.1', # ipv4 of database
+                   port=3306,
+                   user=config['user'],
+                   passwd=config['passwd'],
+                   database=config['schema_name'], # name of database
+                   charset='utf8')
+
+# ----- setup table -----
+conn = pymysql.connect(**db_settings)
+with conn.cursor() as cursor:
+    table_name = 'ruten_price'
+    cursor.execute('SHOW TABLES LIKE %s', (table_name,))
+    result = cursor.fetchone()
+    if not result:
+        create_query = f'''CREATE TABLE {table_name} (
+                            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                            card_id VARCHAR(100),
+                            type VARCHAR(255),
+                            sug_price VARCHAR(25),
+                            ref1_price VARCHAR(25),
+                            ref2_price VARCHAR(25),
+                            ref3_price VARCHAR(25),
+                            ref1_link TEXT,
+                            ref2_link TEXT,
+                            ref3_link TEXT)'''
+        cursor.execute(create_query)
+        conn.commit()
     
 # %% scratch
 while True:
@@ -36,6 +70,7 @@ while True:
                       '<<< 請輸入卡片編號/名稱/型號: ' + Style.RESET_ALL)
     if item_name == str():
         logging.info('結束搜尋')
+        conn.close()
         break
     
     # ----- search in ruten -----
@@ -138,30 +173,79 @@ while True:
         
         # ----- list reference -----
         if flag_list:
-            for i_local in ['國內', '海外']:
-                _tmp_table = table_summary.loc[
-                    table_summary['local']==i_local].sort_values('price')
-                
-                if len(_tmp_table) != 0:
-                    _table_q1 = _tmp_table["price"].quantile(0.25)
-                    _table_med = _tmp_table["price"].median()
-                    _table_top_n = _tmp_table.iloc[:3,:]
-                    if i_local == '國內':
-                        recmd_price = int(np.round(_table_q1*0.8,-2))
-                        logging.info('[%s] purchase/selling price: %d NTD' 
-                                     % (item_name, recmd_price))
-                        
-                        print(Fore.CYAN + Style.BRIGHT +
-                              '<<< ---------系統建議售(收)價:' + 
-                              Style.RESET_ALL + f' {recmd_price} NTD')
-                        
-                        print(Fore.YELLOW + Style.BRIGHT +
-                              f'{i_local}售價中位數: {int(_table_med)}'+ 
-                              f', 售價第一位數: {int(_table_q1)}')
-                        
+            i_local = '國內'
+            _tmp_table = table_summary.loc[
+                table_summary['local']==i_local].sort_values('price')
+            
+            if len(_tmp_table) != 0:
+                _table_q1 = _tmp_table["price"].quantile(0.25)
+                _table_med = _tmp_table["price"].median()
+                _table_top_n = _tmp_table.iloc[:3,:]
+                if i_local == '國內':
+                    recmd_price = int(np.round(_table_q1*0.8,-2))
+                    print(Fore.CYAN + Style.BRIGHT +
+                          '<<< ---------系統建議售(收)價:' + 
+                          Style.RESET_ALL + f' {recmd_price} NTD')
+                    
                     print(Fore.YELLOW + Style.BRIGHT +
-                          f'{i_local}售價前三低的價格與連結:')
-                    print(_table_top_n.loc[:,['name', 'price', 'sales', 'link']].to_markdown())
-                    print('')
-
+                          f'{i_local}售價中位數: {int(_table_med)}'+ 
+                          f', 售價第一位數: {int(_table_q1)}')
+                    
+                print(Fore.YELLOW + Style.BRIGHT +
+                      f'{i_local}售價前三低的價格與連結:')
+                print(_table_top_n.loc[:,['name', 'price', 'sales', 'link']].to_markdown())
+                print('')
+                
+            # %% write into db
+            # ----- generate db format data -----
+            card_name = item_key[0]
+            card_type = '' if len(item_key)==1 else item_key[1]
+            for i, i_price, i_link in zip(range(3), 
+                                          ['ref1_price', 'ref2_price', 'ref3_price'],
+                                          ['ref1_link', 'ref2_link', 'ref3_link']):
+                try:
+                    locals()[i_price] = str(_table_top_n.iloc[i,1])
+                    locals()[i_link] = _table_top_n.iloc[i,4]
+                except:
+                    locals()[i_price] = ''
+                    locals()[i_link] = ''
+            
+            # ----- db part -----
+            try:
+                with conn.cursor() as cursor:
+                    check_query = f"SELECT * FROM {table_name}"
+                    cursor.execute(check_query)
+                    table = cursor.fetchall()
+                    
+                    # ----- check card_id in db or not -----
+                    
+                    check_query = f"SELECT card_id FROM {table_name} WHERE card_id=%s AND type=%s"
+                    cursor.execute(check_query, (item_key[0],card_type))
+                    result = cursor.fetchone()
+                    
+                    
+                    # ----- insert/update db -----
+                    if not result:
+                        command = f"""INSERT INTO {table_name} (card_id, type, 
+                        sug_price, ref1_price, ref2_price, ref3_price, ref1_link, 
+                        ref2_link, ref3_link) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                        cursor.execute(command, 
+                                       (card_name, card_type, str(recmd_price), 
+                                        ref1_price, ref2_price, ref3_price, 
+                                        ref1_link, ref2_link, ref3_link))
+                        print('insert item')
+                    else:
+                        command = f"""UPDATE {table_name} SET card_id=%s, type=%s, 
+                        sug_price=%s, ref1_price=%s, ref2_price=%s, ref3_price=%s, 
+                        ref1_link=%s, ref2_link=%s, ref3_link=%s WHERE card_id=%s AND type=%s"""
+                        cursor.execute(command, 
+                                       (card_name, card_type, str(recmd_price), 
+                                        ref1_price, ref2_price, ref3_price, 
+                                        ref1_link, ref2_link, ref3_link,
+                                        card_name, card_type))
+                        print('update item')
+                    conn.commit()
+            except Exception as e:
+                print(e)
+                logging.error('db error: %s' % e)
 

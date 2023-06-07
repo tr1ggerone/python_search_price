@@ -12,5 +12,6 @@ if not errorlevel 1 (
 	call conda activate web_env
 	call pip install -r requirements.txt
 )
+python python_initial_db.py
 python python_scratch.py
 pause
