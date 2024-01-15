@@ -4,7 +4,7 @@ Created on Mon May 15 10:27:46 2023
 
 @author: HuangAlan
 """
-__version__='0.2.0'
+__version__='0.2.1'
 import json
 import logging
 import os
@@ -164,13 +164,27 @@ while True:
                                                  columns = COL)
             table_summary = pd.DataFrame(np.array(table_summary),
                                          columns = COL)
-            table_summary = table_summary.astype({'price': 'int32',
-                                                  'sales': 'int32'})
         except:
             logging.error('[%s] cannot decoding the table_summary' % item_name)
             print('無滿足關鍵字之條件，請更換其它附帶關鍵字\n')
             flag_list = False
         
+        # ----- transfer data type -----
+        try:
+            # 移除 'price' 和 'sales' 列中的空格
+            table_summary['price'] = table_summary['price'].str.replace(' ', '')
+            table_summary['sales'] = table_summary['sales'].str.replace(' ', '')
+
+            # 轉換為數字，非數字轉為 NaN
+            table_summary['price'] = pd.to_numeric(table_summary['price'], errors='coerce')
+            table_summary['sales'] = pd.to_numeric(table_summary['sales'], errors='coerce')
+            table_summary.dropna(subset=['price', 'sales'], inplace=True)
+            table_summary = table_summary.astype({'price': 'int32', 'sales': 'int32'})
+        except Exception as e:
+            logging.error('Failed to convert data type in pandas. Error: {}'.format(e))
+            print('轉換格式失敗\n')
+            flag_list = False
+
         # ----- list reference -----
         if flag_list:
             i_local = '國內'
@@ -248,4 +262,3 @@ while True:
             except Exception as e:
                 print(e)
                 logging.error('db error: %s' % e)
-
