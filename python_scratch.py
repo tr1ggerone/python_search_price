@@ -2,9 +2,9 @@
 """
 Created on Mon May 15 10:27:46 2023
 
-@author: HuangAlan
+@author: Aaron_Huang
 """
-__version__='0.2.3'
+__version__='0.3.0'
 import json
 import logging
 import os
@@ -42,6 +42,25 @@ db_settings = dict(host='127.0.0.1', # ipv4 of database
                    passwd=config['passwd'],
                    database=config['schema_name'], # name of database
                    charset='utf8')
+
+# ----- initial db -----
+try:
+    conn = pymysql.connect(**db_settings)
+    with conn.cursor() as cursor:
+        
+        # ----- setup schemas -----
+        schema_name = config['schema_name']
+        cursor.execute('SHOW DATABASES LIKE %s', (schema_name,))
+        result = cursor.fetchone()
+        if not result:
+            cursor.execute(f'CREATE DATABASE {schema_name}')
+            print('Database created successfully!')
+        else:
+            print('Database already exists!')
+except Exception as e:
+    print(e)
+finally:
+    conn.close()
 
 # ----- setup table -----
 conn = pymysql.connect(**db_settings)
@@ -122,7 +141,7 @@ while True:
     # %% summary result
     if flag_ana:
         
-        # ----- pre process -----
+        # ----- pre-process -----
         item_key = item_name.split(' ')
         table_price = pd.DataFrame(np.array(table_price), 
                                    columns = ['name', 'price', 'sales', 'link'])
@@ -137,11 +156,14 @@ while True:
                 # ---- decoding price -----
                 flag_banned = False
                 if '~' in _tmp['price']:
-                    _price =  _tmp['price']
+                    _price =  re.sub(',', '',  _tmp['price'].split('~')[0])
                     flag_banned = True
                 elif '約' in _tmp['price']:
                     _price = re.sub(',', '', _tmp['price'].split('約')[-1].strip())
                     _local = '海外'
+                elif ' ' in _tmp['price']:
+                    _price = re.sub(',', '',  _tmp['price'].split(' ')[0])
+                    _local = '國內(降價)'
                 else:
                     _price = re.sub(',', '',  _tmp['price'])
                     _local = '國內'
@@ -174,14 +196,6 @@ while True:
         
         # ----- transfer data type -----
         try:
-            # remove the block in 'price' & 'sales'
-            table_summary['price'] = table_summary['price'].str.replace(' ', '')
-            table_summary['sales'] = table_summary['sales'].str.replace(' ', '')
-
-            # change into int32
-            table_summary['price'] = pd.to_numeric(table_summary['price'], errors='coerce')
-            table_summary['sales'] = pd.to_numeric(table_summary['sales'], errors='coerce')
-            table_summary.dropna(subset=['price', 'sales'], inplace=True)
             table_summary = table_summary.astype({'price': 'int32', 'sales': 'int32'})
         except Exception as e:
             logging.error('Failed to convert data type in pandas. Error: {}'.format(e))
@@ -191,27 +205,16 @@ while True:
         # ----- list reference -----
         if flag_list:
             i_local = '國內'
-            _tmp_table = table_summary.loc[
-                table_summary['local']==i_local].sort_values('price')
-            
+            _tmp_table = table_summary[table_summary['local'].str.contains(i_local, case=False)].sort_values('price')
             if len(_tmp_table) != 0:
                 _table_q1 = _tmp_table["price"].quantile(0.25)
                 _table_med = _tmp_table["price"].median()
                 _table_top_n = _tmp_table.iloc[:3,:]
-                if i_local == '國內':
-                    recmd_price = int(np.round(_table_q1*0.8,-2))
-                    print(Fore.CYAN + Style.BRIGHT +
-                          '<<< ---------系統建議售(收)價:' + 
-                          Style.RESET_ALL + f' {recmd_price} NTD')
-                    
-                    print(Fore.YELLOW + Style.BRIGHT +
-                          f'{i_local}售價中位數: {int(_table_med)}'+ 
-                          f', 售價第一位數: {int(_table_q1)}')
-                    
-                print(Fore.YELLOW + Style.BRIGHT +
-                      f'{i_local}售價前三低的價格與連結:')
-                print(_table_top_n.loc[:,['name', 'price', 'sales', 'link']].to_markdown())
-                print('')
+                recmd_price = int(np.round(_table_q1*0.8,-2))
+                print(Fore.CYAN + Style.BRIGHT + '<<< 系統建議售(收)價:' + Style.RESET_ALL + f' {recmd_price} NTD')
+                print(Fore.YELLOW + Style.BRIGHT + f'{i_local}售價中位數: {int(_table_med)}'+ f', 售價第一位數: {int(_table_q1)}')
+                print(Fore.YELLOW + Style.BRIGHT + f'{i_local}售價前三低的價格與連結:')
+                print(_table_top_n.to_markdown())
                 
             # %% write into db
             # ----- generate db format data -----
@@ -235,7 +238,6 @@ while True:
                     table = cursor.fetchall()
                     
                     # ----- check card_id in db or not -----
-                    
                     check_query = f"SELECT card_id FROM {table_name} WHERE card_id=%s AND type=%s"
                     cursor.execute(check_query, (item_key[0],card_type))
                     result = cursor.fetchone()
