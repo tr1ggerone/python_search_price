@@ -4,7 +4,7 @@ Created on Mon May 15 10:27:46 2023
 
 @author: HuangAlan
 """
-__version__='0.2.1'
+__version__='0.2.3'
 import json
 import logging
 import os
@@ -26,12 +26,12 @@ init(wrap=True, autoreset=True) # need to add wrap to show color in cmd
 
 # ----- set logger -----
 # level set as bebug, will recorded the http debug message in .log
-logging.basicConfig(level=logging.INFO, filename= 'search.log', 
+logging.basicConfig(level=logging.INFO, filename= 'setting/search.log', 
                     format='%(asctime)s, %(levelname)s: %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S')
 
 # ----- load config -----
-with open('config.json',encoding='utf-8') as file:
+with open('setting/config.json',encoding='utf-8') as file:
     config = json.load(file)
 BANNED = config['banned']
 
@@ -72,6 +72,8 @@ while True:
         logging.info('結束搜尋')
         conn.close()
         break
+    BANNED = [i for i in BANNED if i not in item_name]
+    # print(BANNED)
     
     # ----- search in ruten -----
     _time_start = time()
@@ -115,7 +117,8 @@ while True:
             except AttributeError:
                 pass
     logging.info('[%s] search time: %.2f sec.' % (item_name, time()-_time_start))
-    
+    # print(table_price)
+
     # %% summary result
     if flag_ana:
         
@@ -164,18 +167,18 @@ while True:
                                                  columns = COL)
             table_summary = pd.DataFrame(np.array(table_summary),
                                          columns = COL)
-        except:
-            logging.error('[%s] cannot decoding the table_summary' % item_name)
+        except Exception as e:
+            logging.error('Cannot decoding the table_summary. Error: {}'.format(e))
             print('無滿足關鍵字之條件，請更換其它附帶關鍵字\n')
             flag_list = False
         
         # ----- transfer data type -----
         try:
-            # 移除 'price' 和 'sales' 列中的空格
+            # remove the block in 'price' & 'sales'
             table_summary['price'] = table_summary['price'].str.replace(' ', '')
             table_summary['sales'] = table_summary['sales'].str.replace(' ', '')
 
-            # 轉換為數字，非數字轉為 NaN
+            # change into int32
             table_summary['price'] = pd.to_numeric(table_summary['price'], errors='coerce')
             table_summary['sales'] = pd.to_numeric(table_summary['sales'], errors='coerce')
             table_summary.dropna(subset=['price', 'sales'], inplace=True)
@@ -260,5 +263,4 @@ while True:
                         print('update item')
                     conn.commit()
             except Exception as e:
-                print(e)
-                logging.error('db error: %s' % e)
+                logging.error('database Error: {}'.format(e))
