@@ -29,8 +29,7 @@ if not errorlevel 1 (
     call conda activate web_env
     call pip install -r setting/requirements.txt
 )
-python python_initial_db.py #檢查schema是否存在，不存在便創建
-python python_scratch.py #執行python script
+python python_scratch.py #執行爬蟲，包含檢查schema是否存在，不存在便創建
 pause
 ```
 - 若要關閉程式可直接在查詢時按下`Enter鍵`，便會自動關閉程式
