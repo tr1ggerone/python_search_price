@@ -1,0 +1,6 @@
+{
+    "user": "root",
+    "passwd": "Cyh*1122",
+    "schema_name": "price_data",
+    "banned": ["美英","同人","卡套","韓文","福袋","桌墊","法文","token","搜","同","水貼"]
+}
