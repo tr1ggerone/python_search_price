@@ -6,11 +6,11 @@
 ## 功能說明
 1. 依照輸入卡號並回傳露天拍賣上前三便宜的卡價、銷售數量與連結
 2. 搜尋結果將會存在MySQL中，schema名稱為`price_data`，table名稱為`ruten_price`
-3. 要禁止的關鍵字可加在`config.json`中的`banned`，搜尋結果便會給與排除
-4. 系統相關搜尋訊息會記錄在`search.log`中
+3. 要禁止的關鍵字可加在`setting/config.json`中的`banned`，搜尋結果便會給與排除
+4. 系統相關搜尋訊息會記錄在`setting/search.log`中
 
 ## 使用流程
-- 需要先創建MySQL帳戶，並將使用者名稱與密碼分別填入`config.json`中的`user`與`passwd`(不然無法正常啟動)，填寫方式如下所示
+- 需要先創建MySQL帳戶，並將使用者名稱與密碼分別填入`setting/config.json`中的`user`與`passwd`(不然無法正常啟動)，填寫方式如下所示
 ```
 "user": "root",
 "passwd": "ofj93jjwe@fw4",
@@ -27,7 +27,7 @@ if not errorlevel 1 (
     echo setup web_env...
     call conda create -n web_env python=3.9.7
     call conda activate web_env
-    call pip install -r requirements.txt
+    call pip install -r setting/requirements.txt
 )
 python python_initial_db.py #檢查schema是否存在，不存在便創建
 python python_scratch.py #執行python script
