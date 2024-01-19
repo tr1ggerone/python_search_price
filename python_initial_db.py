@@ -4,13 +4,13 @@ Created on Wed Jun  7 11:52:13 2023
 
 @author: HuangAlan
 """
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 import pymysql
 import json
 
 # %% main
 # ----- load config -----
-with open('config.json',encoding='utf-8') as file:
+with open('setting/config.json',encoding='utf-8') as file:
     config = json.load(file)
 
 # ----- initial db -----
