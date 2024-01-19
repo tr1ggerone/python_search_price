@@ -4,7 +4,7 @@ Created on Mon May 15 10:27:46 2023
 
 @author: Aaron_Huang
 """
-__version__='0.3.0'
+__version__='0.3.1'
 import json
 import logging
 import os
@@ -35,20 +35,18 @@ with open('setting/config.json',encoding='utf-8') as file:
     config = json.load(file)
 BANNED = config['banned']
 
-# ----- connect to mySQL db -----
+# ----- initial db / connect to mySQL db -----
 db_settings = dict(host='127.0.0.1', # ipv4 of database
                    port=3306,
                    user=config['user'],
                    passwd=config['passwd'],
-                   database=config['schema_name'], # name of database
                    charset='utf8')
 
-# ----- initial db -----
 try:
     conn = pymysql.connect(**db_settings)
+
+    # ----- setup schemas -----
     with conn.cursor() as cursor:
-        
-        # ----- setup schemas -----
         schema_name = config['schema_name']
         cursor.execute('SHOW DATABASES LIKE %s', (schema_name,))
         result = cursor.fetchone()
@@ -57,12 +55,12 @@ try:
             print('Database created successfully!')
         else:
             print('Database already exists!')
+    conn.close()
 except Exception as e:
     print(e)
-finally:
-    conn.close()
 
 # ----- setup table -----
+db_settings['database'] = config['schema_name']
 conn = pymysql.connect(**db_settings)
 with conn.cursor() as cursor:
     table_name = 'ruten_price'
